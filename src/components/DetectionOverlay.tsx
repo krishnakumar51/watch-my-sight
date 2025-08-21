@@ -40,10 +40,10 @@ export const DetectionOverlay: React.FC<DetectionOverlayProps> = ({
       const width = (xmax - xmin) * canvas.width;
       const height = (ymax - ymin) * canvas.height;
 
-      // Box styling - use CSS variables from design system
-      ctx.strokeStyle = 'hsl(212 100% 50%)'; // --detection-box
+      // Box styling - bright and visible
+      ctx.strokeStyle = '#00ff00'; // Bright green for visibility
       ctx.lineWidth = 3;
-      ctx.fillStyle = 'hsla(212, 100%, 50%, 0.1)'; // Semi-transparent detection box
+      ctx.fillStyle = 'rgba(0, 255, 0, 0.1)'; // Semi-transparent green
 
       // Draw bounding box
       ctx.fillRect(x, y, width, height);
@@ -56,12 +56,12 @@ export const DetectionOverlay: React.FC<DetectionOverlayProps> = ({
       const labelWidth = textMetrics.width + 12;
       const labelHeight = 24;
 
-      // Label background - use CSS variables from design system
-      ctx.fillStyle = 'hsl(180 100% 50%)'; // --detection-label
+      // Label background - bright and visible
+      ctx.fillStyle = '#00ff00'; // Bright green background
       ctx.fillRect(x, y - labelHeight, labelWidth, labelHeight);
 
-      // Label text - high contrast white text
-      ctx.fillStyle = 'hsl(220 20% 4%)'; // Dark text on cyan background for better contrast
+      // Label text - high contrast black text
+      ctx.fillStyle = '#000000'; // Black text on green background
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
       ctx.fillText(labelText, x + 6, y - labelHeight / 2);

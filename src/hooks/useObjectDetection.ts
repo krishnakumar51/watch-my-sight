@@ -65,7 +65,7 @@ export const useObjectDetection = (mode: DetectionMode) => {
         formData.append('image', blob);
         formData.append('timestamp', Date.now().toString());
 
-        const response = await fetch('/api/detect', {
+        const response = await fetch('http://localhost:8000/api/detect', {
           method: 'POST',
           body: formData
         });
@@ -136,18 +136,18 @@ export const useObjectDetection = (mode: DetectionMode) => {
     console.log('Object detection stopped');
   }, []);
 
-  // Ensure detections are always visible for debugging
+  // Always show test detections when processing starts
   useEffect(() => {
     if (isProcessing) {
-      // Always show some detections for testing bounding boxes
+      // Show test bounding boxes immediately
       const testDetections: Detection[] = [
         {
           label: 'person',
           score: 0.93,
-          xmin: 0.12,
-          ymin: 0.08,
-          xmax: 0.34,
-          ymax: 0.67,
+          xmin: 0.1,
+          ymin: 0.1,
+          xmax: 0.4,
+          ymax: 0.7,
           frame_id: Date.now(),
           capture_ts: Date.now(),
           recv_ts: Date.now() + 10,
@@ -156,24 +156,31 @@ export const useObjectDetection = (mode: DetectionMode) => {
         {
           label: 'phone',
           score: 0.87,
-          xmin: 0.45,
-          ymin: 0.23,
-          xmax: 0.62,
-          ymax: 0.41,
+          xmin: 0.5,
+          ymin: 0.2,
+          xmax: 0.7,
+          ymax: 0.5,
           frame_id: Date.now() + 1,
           capture_ts: Date.now(),
           recv_ts: Date.now() + 8,
           inference_ts: Date.now() + 20
+        },
+        {
+          label: 'bottle',
+          score: 0.76,
+          xmin: 0.75,
+          ymin: 0.3,
+          xmax: 0.9,
+          ymax: 0.8,
+          frame_id: Date.now() + 2,
+          capture_ts: Date.now(),
+          recv_ts: Date.now() + 12,
+          inference_ts: Date.now() + 30
         }
       ];
 
-      // Show detections immediately for testing
-      const timeout = setTimeout(() => {
-        setDetections(testDetections);
-        console.log('Test detections set:', testDetections);
-      }, 1000);
-
-      return () => clearTimeout(timeout);
+      setDetections(testDetections);
+      console.log('✅ Test bounding boxes set:', testDetections);
     } else {
       setDetections([]);
     }
