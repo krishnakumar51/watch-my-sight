@@ -22,7 +22,7 @@ let yoloSession: ort.InferenceSession | null = null;
 async function initializeModel() {
   try {
     ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/';
-    yoloSession = await ort.InferenceSession.create('/models/yolov8n.onnx', { 
+    yoloSession = await ort.InferenceSession.create('/models/yolov5n.onnx', { 
       executionProviders: ['wasm']
     });
     console.log('YOLOv8n model loaded successfully');
