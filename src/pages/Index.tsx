@@ -44,8 +44,10 @@ const Index = () => {
   } = useMetrics();
 
   useEffect(() => {
-    // Generate connection URL and QR code with network IP
-    const url = `http://192.168.1.3:3001/phone`;
+    // Generate connection URL and QR code with current domain
+    const currentHost = window.location.host;
+    const protocol = window.location.protocol;
+    const url = `${protocol}//${currentHost}/phone`;
     setConnectionUrl(url);
   }, []);
 

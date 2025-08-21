@@ -4,58 +4,91 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Camera, CameraOff, Wifi, WifiOff, Smartphone } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useObjectDetection } from '@/hooks/useObjectDetection';
+import { DetectionOverlay } from '@/components/DetectionOverlay';
 
 const Phone = () => {
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [error, setError] = useState<string>('');
   
   const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const { toast } = useToast();
+  
+  // Use object detection hook with WASM mode for phone
+  const { detections, isProcessing, startDetection, stopDetection } = useObjectDetection('wasm');
 
   const startCamera = async () => {
     try {
       setError('');
       
-      // Check if mediaDevices is supported
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error('Camera access not supported on this device/browser');
+      // Enhanced camera access check with better error handling
+      if (!navigator.mediaDevices) {
+        throw new Error('This browser does not support camera access. Please use a modern browser with HTTPS.');
       }
       
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { 
-          facingMode: 'environment', // Use back camera
-          width: { ideal: 640 },
-          height: { ideal: 480 },
-          frameRate: { ideal: 30 }
+      if (!navigator.mediaDevices.getUserMedia) {
+        throw new Error('getUserMedia is not supported. Please ensure you are using HTTPS.');
+      }
+
+      // More flexible camera constraints with fallbacks
+      const constraints = {
+        video: {
+          facingMode: { ideal: 'environment' }, // Prefer back camera but allow front
+          width: { ideal: 640, min: 320 },
+          height: { ideal: 480, min: 240 },
+          frameRate: { ideal: 30, min: 15 }
         },
         audio: false
-      });
+      };
+
+      let mediaStream: MediaStream;
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+      } catch (err) {
+        // Fallback to basic constraints if advanced ones fail
+        console.warn('Advanced camera constraints failed, falling back to basic:', err);
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false
+        });
+      }
 
       setStream(mediaStream);
-      setIsStreaming(true);
       
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
+        // Wait for video to be ready before starting detection
+        videoRef.current.onloadedmetadata = () => {
+          startDetection(mediaStream);
+        };
+      } else {
+        startDetection(mediaStream);
       }
 
       toast({
         title: "Camera Started",
-        description: "Successfully connected to camera",
+        description: "Successfully connected to camera with object detection",
       });
 
-      // Simulate WebRTC connection
-      setTimeout(() => {
-        setIsConnected(true);
-        toast({
-          title: "Connected",
-          description: "Successfully connected to detection system",
-        });
-      }, 2000);
-
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to access camera';
+      let errorMessage = 'Failed to access camera';
+      
+      if (err instanceof Error) {
+        errorMessage = err.message;
+        
+        // Provide more helpful error messages
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          errorMessage = 'Camera permission denied. Please allow camera access and try again.';
+        } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+          errorMessage = 'No camera found on this device.';
+        } else if (err.name === 'NotSupportedError') {
+          errorMessage = 'Camera not supported. Please use HTTPS or a supported browser.';
+        } else if (err.name === 'NotReadableError') {
+          errorMessage = 'Camera is already in use by another application.';
+        }
+      }
+      
       setError(errorMessage);
       
       toast({
@@ -72,8 +105,7 @@ const Phone = () => {
       setStream(null);
     }
     
-    setIsStreaming(false);
-    setIsConnected(false);
+    stopDetection();
     setError('');
 
     if (videoRef.current) {
@@ -116,29 +148,29 @@ const Phone = () => {
       <div className="grid grid-cols-2 gap-3 mb-6">
         <Card className="p-3 text-center bg-gradient-surface border-border">
           <div className="flex items-center justify-center gap-2 mb-1">
-            {isStreaming ? (
+            {stream ? (
               <Camera className="w-5 h-5 text-success" />
             ) : (
               <CameraOff className="w-5 h-5 text-muted-foreground" />
             )}
             <span className="text-sm font-medium">Camera</span>
           </div>
-          <Badge variant={isStreaming ? 'default' : 'secondary'}>
-            {isStreaming ? 'Active' : 'Stopped'}
+          <Badge variant={stream ? 'default' : 'secondary'}>
+            {stream ? 'Active' : 'Stopped'}
           </Badge>
         </Card>
 
         <Card className="p-3 text-center bg-gradient-surface border-border">
           <div className="flex items-center justify-center gap-2 mb-1">
-            {isConnected ? (
+            {isProcessing ? (
               <Wifi className="w-5 h-5 text-success" />
             ) : (
               <WifiOff className="w-5 h-5 text-muted-foreground" />
             )}
-            <span className="text-sm font-medium">Connection</span>
+            <span className="text-sm font-medium">Detection</span>
           </div>
-          <Badge variant={isConnected ? 'default' : 'secondary'}>
-            {isConnected ? 'Connected' : 'Waiting'}
+          <Badge variant={isProcessing ? 'default' : 'secondary'}>
+            {isProcessing ? 'Active' : 'Waiting'}
           </Badge>
         </Card>
       </div>
@@ -146,14 +178,28 @@ const Phone = () => {
       {/* Video Stream */}
       <Card className="mb-6 overflow-hidden bg-gradient-surface border-border">
         <div className="aspect-video bg-muted relative">
-          {isStreaming ? (
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              className="w-full h-full object-cover"
-            />
+          {stream ? (
+            <>
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-full h-full object-cover"
+              />
+              {/* Detection Overlay */}
+              <DetectionOverlay 
+                detections={detections}
+                videoRef={videoRef}
+                canvasRef={canvasRef}
+              />
+              {/* Detection Counter */}
+              {detections.length > 0 && (
+                <div className="absolute top-2 right-2 bg-primary/90 text-primary-foreground px-2 py-1 rounded-md text-xs font-medium">
+                  {detections.length} detection{detections.length !== 1 ? 's' : ''}
+                </div>
+              )}
+            </>
           ) : (
             <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground">
               <CameraOff className="w-12 h-12 mb-4" />
@@ -176,7 +222,7 @@ const Phone = () => {
 
       {/* Controls */}
       <div className="space-y-4">
-        {!isStreaming ? (
+        {!stream ? (
           <Button 
             onClick={startCamera}
             size="lg"
@@ -205,18 +251,26 @@ const Phone = () => {
             <li>• Point camera at objects to detect</li>
             <li>• Keep phone steady for best results</li>
             <li>• Ensure good lighting conditions</li>
+            <li>• Uses on-device WASM inference</li>
           </ul>
         </Card>
 
-        {/* Connection Info */}
-        {isConnected && (
+        {/* Detection Status */}
+        {isProcessing && (
           <Card className="p-4 bg-success/10 border-success/20">
             <p className="text-success text-sm font-medium mb-1">
-              ✅ Successfully Connected
+              ✅ Object Detection Active
             </p>
             <p className="text-success/80 text-sm">
-              Your camera stream is being processed for object detection
+              Processing camera stream with WASM inference
             </p>
+            {detections.length > 0 && (
+              <div className="mt-2">
+                <p className="text-xs text-success/70">
+                  Latest detections: {detections.map(d => `${d.label} (${Math.round(d.score * 100)}%)`).join(', ')}
+                </p>
+              </div>
+            )}
           </Card>
         )}
       </div>

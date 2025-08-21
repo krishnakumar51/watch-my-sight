@@ -1,1 +1,4 @@
-Not Found
+# This is a placeholder for the YOLOv8n ONNX model
+# Please download the actual YOLOv8n ONNX model and place it here
+# See the README.md in this directory for instructions
+# Until then, the system will use mock detections for testing

@@ -22,7 +22,7 @@ let yoloSession: ort.InferenceSession | null = null;
 async function initializeModel() {
   try {
     ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/';
-    yoloSession = await ort.InferenceSession.create('/model/yolov8n.onnx', { 
+    yoloSession = await ort.InferenceSession.create('/models/yolov8n.onnx', { 
       executionProviders: ['wasm']
     });
     console.log('YOLOv8n model loaded successfully');
@@ -199,23 +199,36 @@ self.onmessage = async function(event) {
   }
   
   if (!yoloSession) {
-    // Fallback to mock detections
+    console.log('YOLOv8n model not loaded, using mock detections');
+    // Enhanced mock detections that vary over time
     const mockDetections = [
       {
         label: 'person',
-        score: 0.85 + Math.random() * 0.1,
-        xmin: 0.1 + Math.random() * 0.1,
-        ymin: 0.15 + Math.random() * 0.1,
-        xmax: 0.4 + Math.random() * 0.1,
-        ymax: 0.8 + Math.random() * 0.1
+        score: 0.85 + Math.random() * 0.15,
+        xmin: 0.1 + Math.random() * 0.05,
+        ymin: 0.15 + Math.random() * 0.05,
+        xmax: 0.35 + Math.random() * 0.05,
+        ymax: 0.75 + Math.random() * 0.05
+      },
+      {
+        label: 'phone',
+        score: 0.70 + Math.random() * 0.20,
+        xmin: 0.45 + Math.random() * 0.1,
+        ymin: 0.2 + Math.random() * 0.1,
+        xmax: 0.65 + Math.random() * 0.05,
+        ymax: 0.4 + Math.random() * 0.05
       }
     ];
     
+    // Randomly remove some detections to simulate real behavior
+    const finalDetections = mockDetections.filter(() => Math.random() > 0.3);
+    
     self.postMessage({
-      detections: mockDetections,
-      processingTime: 25,
+      detections: finalDetections,
+      processingTime: 20 + Math.random() * 15,
       frameId,
-      timestamp
+      timestamp,
+      mockMode: true
     });
     return;
   }
